@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TypeAlias
 
 from ._validation import tuple_of_floats, tuple_of_names
 
@@ -43,3 +44,6 @@ class JointEffortCommand:
             raise ValueError("JOINT_EFFORT_COMMAND_WIDTH_MISMATCH")
         object.__setattr__(self, "joint_names", names)
         object.__setattr__(self, "effort_nm", effort)
+
+
+Command: TypeAlias = JointPositionCommand | JointEffortCommand

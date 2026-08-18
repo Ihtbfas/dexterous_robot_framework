@@ -3,12 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Mapping, Sequence, TypeAlias
+from typing import Mapping, Sequence
 
-from dexterous_robot.core import JointEffortCommand, JointPositionCommand, JointState, Pose
+from dexterous_robot.core import Command, JointState, Pose
 
-SignalValue: TypeAlias = float | int | bool | str | None
-Command: TypeAlias = JointPositionCommand | JointEffortCommand
+SignalValue = float | int | bool | str | None
 
 
 def _freeze_named_mapping(mapping: Mapping[str, object], *, key_error: str, value_type: type, value_error: str):
