@@ -1,17 +1,13 @@
 """Backend-neutral reusable robot behaviors."""
 
-from .approach import ApproachGoal, ApproachSkill
-from .grasp import GraspCriteria, GraspSkill
-from .hold import HoldCriteria, HoldSkill
-from .lift import LiftCriteria, LiftSkill
+from .approach import ApproachGoal, ApproachSkill, ArmWaypoint, PreshapeApproachPlan, PreshapeApproachSkill
+from .grasp import GraspCriteria, GraspSkill, PreloadGraspCriteria, PreloadGraspSkill
+from .hold import HoldCriteria, HoldSkill, SuspendedHoldSkill
+from .lift import LiftCriteria, LiftSkill, LivePoseLiftSkill
 
 __all__ = [
-    "ApproachGoal",
-    "ApproachSkill",
-    "GraspCriteria",
-    "GraspSkill",
-    "HoldCriteria",
-    "HoldSkill",
-    "LiftCriteria",
-    "LiftSkill",
+    "ApproachGoal", "ApproachSkill", "ArmWaypoint", "PreshapeApproachPlan", "PreshapeApproachSkill",
+    "GraspCriteria", "GraspSkill", "PreloadGraspCriteria", "PreloadGraspSkill",
+    "HoldCriteria", "HoldSkill", "SuspendedHoldSkill",
+    "LiftCriteria", "LiftSkill", "LivePoseLiftSkill",
 ]

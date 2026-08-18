@@ -53,3 +53,24 @@ def test_isaac_config_loader_rejects_unknown_schema(tmp_path: Path):
     path.write_text("schema_version: 99\nkind: IsaacBackend\n", encoding="utf-8")
     with pytest.raises(IsaacConfigError):
         load_isaac_backend_config(path)
+
+
+def test_r8_backend_config_has_distinct_open_and_grasp_lock_hand_profiles() -> None:
+    from dexterous_robot.backends.isaac.config import load_isaac_backend_config
+
+    cfg = load_isaac_backend_config(Path(__file__).resolve().parents[2] / "configs" / "backends" / "isaac.yaml")
+    assert cfg.hand_open_hold.drive_type == "force"
+    assert cfg.hand_grasp_lock.drive_type == "force"
+    assert len(cfg.hand_grasp_lock.max_force_nm) == 21
+    # Contact authority is intentionally stronger than precontact authority on evidence-selected lanes.
+    assert cfg.hand_grasp_lock.max_force_nm[0] == pytest.approx(0.12)
+    assert cfg.hand_grasp_lock.max_force_nm[1] == pytest.approx(0.1087)
+    assert cfg.hand_grasp_lock.max_force_nm[13] == pytest.approx(0.04291625)
+    assert cfg.hand_grasp_lock.max_force_nm[14] == pytest.approx(0.02271125)
+    assert cfg.hand_grasp_lock.max_force_nm[15] == pytest.approx(0.00879875)
+    assert cfg.hand_grasp_lock.damping_usd_per_degree_per_second[3] == pytest.approx(
+        2.0 * cfg.hand_open_hold.damping_usd_per_degree_per_second[3]
+    )
+    assert cfg.hand_grasp_lock.damping_usd_per_degree_per_second[4] == pytest.approx(
+        2.0 * cfg.hand_open_hold.damping_usd_per_degree_per_second[4]
+    )

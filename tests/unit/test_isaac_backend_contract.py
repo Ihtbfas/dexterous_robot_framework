@@ -262,3 +262,9 @@ def test_smoke_records_transform_checkpoint_after_ten_runtime_cycles(monkeypatch
     assert payload["status"] == "PASS"
     assert events[-1] == ("checkpoint", "POST_SMOKE_10_STEPS")
     assert sum(1 for kind, _ in events if kind == "cycle") == 10
+
+
+def test_r8_initialization_and_reset_apply_open_hand_profile_not_only_cache_it():
+    source = (Path(__file__).resolve().parents[2] / "src/dexterous_robot/backends/isaac/backend.py").read_text(encoding="utf-8")
+    assert source.count('self._apply_hand_drive_profile("hand_open_hold", wp, indices)') >= 2
+    assert source.count('self._active_hand_profile = "hand_open_hold"') >= 2

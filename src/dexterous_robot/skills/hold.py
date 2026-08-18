@@ -116,3 +116,51 @@ class HoldSkill:
         if snapshot.time_s - self._started_at_s >= self._criteria.hold_duration_s:
             return SkillResult(SkillStatus.SUCCESS), commands
         return SkillResult(SkillStatus.RUNNING), commands
+
+
+class SuspendedHoldSkill:
+    """Hold the measured post-lift arm joints while preserving the fixed hand lock."""
+
+    def __init__(self, *, hand_hold_command: JointPositionCommand, criteria: HoldCriteria) -> None:
+        if not isinstance(hand_hold_command, JointPositionCommand) or hand_hold_command.device_id != "hand":
+            raise ValueError("SUSPENDED_HOLD_HAND_COMMAND_INVALID")
+        if not isinstance(criteria, HoldCriteria):
+            raise ValueError("SUSPENDED_HOLD_CRITERIA_INVALID")
+        self._hand_hold_command = hand_hold_command
+        self._criteria = criteria
+        self.reset()
+
+    def reset(self) -> None:
+        self._started_at_s: float | None = None
+        self._initial_relative_xyz: tuple[float, float, float] | None = None
+        self._arm_hold_command: JointPositionCommand | None = None
+
+    @property
+    def arm_hold_command(self) -> JointPositionCommand | None:
+        return self._arm_hold_command
+
+    def step(self, snapshot: RuntimeSnapshot) -> tuple[SkillResult, tuple[Command, ...]]:
+        try:
+            arm_state = snapshot_joint_state(snapshot, "arm")
+            object_pose = snapshot_pose(snapshot, self._criteria.object_body_id)
+            hand_pose = snapshot_pose(snapshot, self._criteria.hand_body_id)
+            table_normal_n = snapshot_numeric_signal(snapshot, self._criteria.table_normal_signal)
+        except (KeyError, ValueError) as exc:
+            return SkillResult(SkillStatus.FAILURE, FailureReason.RUNTIME_ERROR, str(exc)), (self._hand_hold_command,)
+        relative = relative_xyz(object_pose, hand_pose)
+        if self._started_at_s is None:
+            self._started_at_s = snapshot.time_s
+            self._initial_relative_xyz = relative
+            self._arm_hold_command = JointPositionCommand(
+                "arm", arm_state.names, arm_state.position_rad, profile="arm_carry_position_drive"
+            )
+        assert self._initial_relative_xyz is not None and self._arm_hold_command is not None
+        commands: tuple[Command, ...] = (self._arm_hold_command, self._hand_hold_command)
+        if xyz_distance(relative, self._initial_relative_xyz) > self._criteria.max_relative_drift_m:
+            return SkillResult(SkillStatus.FAILURE, FailureReason.OBJECT_SLIPPED, "object-to-hand relative pose drift exceeded hold bound"), commands
+        object_bottom = object_pose.position_xyz_m[2] - self._criteria.object_half_height_m
+        if object_bottom < self._criteria.table_top_z_m + self._criteria.minimum_clearance_m or table_normal_n > self._criteria.max_table_normal_n:
+            return SkillResult(SkillStatus.FAILURE, FailureReason.OBJECT_SLIPPED, "object no longer remains off table"), commands
+        if snapshot.time_s - self._started_at_s + 1.0e-12 >= self._criteria.hold_duration_s:
+            return SkillResult(SkillStatus.SUCCESS), commands
+        return SkillResult(SkillStatus.RUNNING), commands

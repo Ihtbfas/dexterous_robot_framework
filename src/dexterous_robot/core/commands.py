@@ -46,4 +46,18 @@ class JointEffortCommand:
         object.__setattr__(self, "effort_nm", effort)
 
 
-Command: TypeAlias = JointPositionCommand | JointEffortCommand
+@dataclass(frozen=True)
+class RigidBodyKinematicCommand:
+    """Backend-neutral request to switch one semantic rigid body dynamic/kinematic mode."""
+
+    body_id: str
+    kinematic_enabled: bool
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.body_id, str) or not self.body_id:
+            raise ValueError("RIGID_BODY_KINEMATIC_BODY_ID_INVALID")
+        if not isinstance(self.kinematic_enabled, bool):
+            raise ValueError("RIGID_BODY_KINEMATIC_VALUE_INVALID")
+
+
+Command: TypeAlias = JointPositionCommand | JointEffortCommand | RigidBodyKinematicCommand

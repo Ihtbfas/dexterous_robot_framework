@@ -7,7 +7,7 @@ from typing import Sequence
 
 from dexterous_robot.backends.base import Backend, BackendState, Command
 from dexterous_robot.config import LocalAssetConfig
-from dexterous_robot.core import JointEffortCommand, JointPositionCommand, JointState, Pose
+from dexterous_robot.core import JointEffortCommand, JointPositionCommand, JointState, Pose, RigidBodyKinematicCommand
 from dexterous_robot.robots import ManipulatorSystem
 
 from .config import IsaacBackendConfig, TabletopGraspLiftConfig
@@ -55,7 +55,11 @@ class IsaacBackend(Backend):
         self._object_view = None
         self._contact_collector: IsaacContactCollector | None = None
         self._transform_policy: RootSeedDynamicTransformPolicy | None = None
+        self._session_layer = None
+        self._object_kinematic_attr = None
         self._current_position_targets: tuple[float, ...] | None = None
+        self._active_arm_profile: str | None = None
+        self._active_hand_profile: str | None = None
         self._sim_time_s = 0.0
         self._diagnostics: dict[str, object] = {}
 
@@ -171,6 +175,8 @@ class IsaacBackend(Backend):
             task_config=self._task,
         )
 
+        self._session_layer = handles.session_layer
+        self._object_kinematic_attr = handles.object_kinematic_attr
         self._diagnostics.update({
             "phase": "scene_authored",
             "articulation_candidates": list(handles.articulation_candidates),
@@ -240,6 +246,10 @@ class IsaacBackend(Backend):
         physics_view.update_articulations_kinematic()
         policy.sync(physx)
         self._current_position_targets = full_initial
+        self._active_arm_profile = None
+        self._active_hand_profile = None
+        self._apply_hand_drive_profile("hand_open_hold", wp, indices)
+        self._active_hand_profile = "hand_open_hold"
         self._diagnostics["phase"] = "initial_dof_state_applied"
 
         collector = IsaacContactCollector(
@@ -356,24 +366,28 @@ class IsaacBackend(Backend):
         touched_position = False
         effort = [0.0] * 28
         touched_effort = False
-        arm_profile_requested = False
+        arm_profile_requested: str | None = None
+        hand_profile_requested: str | None = None
         for command in commands:
             if isinstance(command, JointPositionCommand):
                 if command.device_id == self._robot.arm.device_id:
                     if command.joint_names != tuple(self._robot.arm.joint_names):
                         raise ValueError("ISAAC_ARM_COMMAND_JOINT_ORDER_INVALID")
-                    for index, value in zip(self._routing.arm_backend_indices, command.position_rad, strict=True):
-                        current[index] = value
                     if command.profile not in (None, "arm_carry_position_drive"):
                         raise ValueError("ISAAC_ARM_COMMAND_PROFILE_INVALID")
-                    arm_profile_requested = command.profile == "arm_carry_position_drive"
+                    for index, value in zip(self._routing.arm_backend_indices, command.position_rad, strict=True):
+                        current[index] = value
+                    if command.profile is not None:
+                        arm_profile_requested = command.profile
                 elif command.device_id == self._robot.hand.device_id:
                     if command.joint_names != tuple(self._robot.hand.physical_joints):
                         raise ValueError("ISAAC_HAND_COMMAND_JOINT_ORDER_INVALID")
-                    if command.profile is not None:
+                    if command.profile not in (None, "hand_open_hold", "hand_grasp_lock"):
                         raise ValueError("ISAAC_HAND_COMMAND_PROFILE_INVALID")
                     for index, value in zip(self._routing.hand_backend_indices, command.position_rad, strict=True):
                         current[index] = value
+                    if command.profile is not None:
+                        hand_profile_requested = command.profile
                 else:
                     raise ValueError(f"ISAAC_COMMAND_DEVICE_UNKNOWN:{command.device_id}")
                 touched_position = True
@@ -391,6 +405,10 @@ class IsaacBackend(Backend):
                 else:
                     raise ValueError(f"ISAAC_COMMAND_DEVICE_UNKNOWN:{command.device_id}")
                 touched_effort = True
+            elif isinstance(command, RigidBodyKinematicCommand):
+                if command.body_id != "object":
+                    raise ValueError(f"ISAAC_RIGID_BODY_COMMAND_UNKNOWN:{command.body_id}")
+                self._set_object_kinematic(command.kinematic_enabled)
             else:
                 raise TypeError("ISAAC_COMMAND_TYPE_UNSUPPORTED")
 
@@ -401,8 +419,27 @@ class IsaacBackend(Backend):
             self._current_position_targets = tuple(current)
         if touched_effort:
             self._articulation.set_dof_actuation_forces(wp.array([effort], dtype=wp.float32, device="cpu"), indices)
-        if arm_profile_requested:
+        if arm_profile_requested is not None and arm_profile_requested != self._active_arm_profile:
             self._apply_arm_carry_drive_profile(wp, indices)
+            self._active_arm_profile = arm_profile_requested
+        if hand_profile_requested is not None and hand_profile_requested != self._active_hand_profile:
+            self._apply_hand_drive_profile(hand_profile_requested, wp, indices)
+            self._active_hand_profile = hand_profile_requested
+
+    def _set_object_kinematic(self, enabled: bool) -> None:  # pragma: no cover - requires Isaac runtime
+        if self._stage is None or self._session_layer is None or self._object_kinematic_attr is None:
+            raise RuntimeError("ISAAC_OBJECT_KINEMATIC_HANDLE_UNAVAILABLE")
+        original = self._stage.GetEditTarget()
+        try:
+            self._stage.SetEditTarget(self._session_layer)
+            if self._object_kinematic_attr.Set(bool(enabled)) is not True:
+                raise RuntimeError("ISAAC_OBJECT_KINEMATIC_WRITE_FAILED")
+        finally:
+            self._stage.SetEditTarget(original)
+        self._diagnostics["object_kinematic_enabled"] = bool(enabled)
+        transitions = self._diagnostics.setdefault("object_kinematic_transitions", [])
+        if isinstance(transitions, list):
+            transitions.append({"simulation_time_s": float(self._sim_time_s), "kinematic_enabled": bool(enabled)})
 
     def _apply_arm_carry_drive_profile(self, wp, indices) -> None:  # pragma: no cover - requires Isaac runtime
         assert self._routing is not None and self._articulation is not None
@@ -417,6 +454,29 @@ class IsaacBackend(Backend):
         self._articulation.set_dof_stiffnesses(wp.array([stiffness], dtype=wp.float32, device="cpu"), indices)
         self._articulation.set_dof_dampings(wp.array([damping], dtype=wp.float32, device="cpu"), indices)
         self._articulation.set_dof_max_forces(wp.array([max_force], dtype=wp.float32, device="cpu"), indices)
+
+    def _apply_hand_drive_profile(self, profile_name: str, wp, indices) -> None:  # pragma: no cover - requires Isaac runtime
+        assert self._routing is not None and self._articulation is not None
+        if profile_name == "hand_open_hold":
+            profile = self._cfg.hand_open_hold
+        elif profile_name == "hand_grasp_lock":
+            profile = self._cfg.hand_grasp_lock
+        else:
+            raise ValueError(f"ISAAC_HAND_PROFILE_UNKNOWN:{profile_name}")
+        stiffness = list(self._numpy_row(self._articulation.get_dof_stiffnesses()))
+        damping = list(self._numpy_row(self._articulation.get_dof_dampings()))
+        max_force = list(self._numpy_row(self._articulation.get_dof_max_forces()))
+        # USD angular DriveAPI is authored per degree; tensor articulation APIs
+        # expose the PhysX per-radian values observed in the frozen runtime.
+        usd_to_backend = 180.0 / math.pi
+        for lane, index in enumerate(self._routing.hand_backend_indices):
+            stiffness[index] = profile.stiffness_usd_per_degree[lane] * usd_to_backend
+            damping[index] = profile.damping_usd_per_degree_per_second[lane] * usd_to_backend
+            max_force[index] = profile.max_force_nm[lane]
+        self._articulation.set_dof_stiffnesses(wp.array([stiffness], dtype=wp.float32, device="cpu"), indices)
+        self._articulation.set_dof_dampings(wp.array([damping], dtype=wp.float32, device="cpu"), indices)
+        self._articulation.set_dof_max_forces(wp.array([max_force], dtype=wp.float32, device="cpu"), indices)
+        self._diagnostics["active_hand_profile"] = profile_name
 
     def step(self, dt_s: float) -> None:
         self._require_initialized()
@@ -451,6 +511,11 @@ class IsaacBackend(Backend):
         self._transform_policy.sync(self._physx)
         self._sim_time_s = 0.0
         self._current_position_targets = full_initial
+        self._active_arm_profile = None
+        self._active_hand_profile = None
+        self._apply_hand_drive_profile("hand_open_hold", wp, indices)
+        self._active_hand_profile = "hand_open_hold"
+        self._set_object_kinematic(True)
 
     def _runtime_positions(self, *, stage, context, np) -> dict[str, tuple[float, float, float] | None]:  # pragma: no cover
         assert self._object_view is not None and self._transform_policy is not None and self._physx is not None
