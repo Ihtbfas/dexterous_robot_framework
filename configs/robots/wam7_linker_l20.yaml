@@ -1,0 +1,16 @@
+schema_version: 1
+kind: ManipulatorSystem
+system_id: wam7_linker_l20
+arm_config: ../devices/arms/wam7.yaml
+hand_config: ../devices/hands/linker_l20.yaml
+tcp_frame: l20_tcp
+hand_mount:
+  parent_frame: wam_j7
+  child_frame: l20_base
+  position_xyz_m: [0.0, 0.0, 0.00991000205278397]
+  quaternion_xyzw: [0.0, 0.0, 0.0, 1.0]
+  selection:
+    candidate_id: M_R000_D005
+    rotation_deg: 0
+    standoff_m: 0.005
+    flange_offset_m: 0.00491000205278397

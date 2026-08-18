@@ -1,0 +1,5 @@
+schema_version: 1
+kind: Wam7Model
+device_id: arm
+base_frame: wam_base
+flange_frame: wam_j7
