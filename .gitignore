@@ -1,0 +1,21 @@
+# Local/private configuration and research outputs
+configs/local/
+experiments/
+runs/
+evidence/
+scratch/
+
+# Python/runtime generated files
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+.venv/
+
+# Editors/OS
+.vscode/
+.idea/
+.DS_Store
