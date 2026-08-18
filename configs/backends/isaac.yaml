@@ -1,0 +1,34 @@
+schema_version: 1
+kind: IsaacBackend
+physics_dt_s: 0.008333333333333333
+stage_load_timeout_s: 30.0
+asset_authority:
+  wam_runtime_sha256: ee4994869755fff0a120e6a136d5dca1e337e323ea2fe5d149fac8c036e1ad8f
+  l20_runtime_sha256: 966610337cc1fc8df30b5208d5459ee811b3c510121ea7a0eadec7568c305802
+paths:
+  l20_root: /L20Dynamic
+  l20_world_fixed_joint: /L20Dynamic/Joints/world_fixed_joint
+  integration_scope: /DexterousRobotIntegration
+  integration_fixed_joint: /DexterousRobotIntegration/wam_j7_to_l20
+  wam_j7_body: /wam_7dof/Geometry/world/wam_footprint/wam_base/j1/j2/j3/j4/j5/j6/j7
+  l20_base_body: /L20Dynamic/base_link
+  table: /DexterousRobotScene/Table
+  object: /DexterousRobotScene/Object
+  grasp_material: /DexterousRobotIntegration/GraspPhysicsMaterial
+  scene_material: /DexterousRobotScene/PhysicsMaterial
+transform_sync:
+  update_to_fast_cache: true
+  update_to_usd: true
+  position_tolerance_m: 0.001
+profiles:
+  arm_carry_position_drive:
+    stiffness: [400.0, 400.0, 400.0, 400.0, 600.0, 800.0, 800.0]
+    damping: [25.0, 25.0, 25.0, 25.0, 35.0, 45.0, 45.0]
+    max_force: [30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0]
+
+  hand_open_hold:
+    stiffness_usd_per_degree: [0.02399754, 0.0050461683, 0.016657298, 0.004246431, 0.0007256107, 0.00014390181, 0.007106761, 0.003288869, 0.0006660106, 0.00014390181, 0.007106826, 0.003288868, 0.00066601054, 0.00014390181, 0.0071068285, 0.0032888697, 0.0006660114, 0.00014390181, 0.007106832, 0.0032888725, 0.0006660124]
+    damping_usd_per_degree_per_second: [0.00048083317, 0.00023855189, 0.0003671485, 0.00006914443, 0.0000088814595, 0.0000062717436, 0.00013242009, 0.00004219947, 0.000005883052, 0.0000062718036, 0.00013242192, 0.000042199455, 0.00000588305, 0.00000627184, 0.00013242198, 0.00004219948, 0.000005883059, 0.0000062717772, 0.00013242205, 0.00004219952, 0.0000058830683]
+    max_force_nm: [0.044003703, 0.010040526, 0.030735392, 0.0076952456, 0.0015285095, 0.00018152807, 0.012974333, 0.0058949348, 0.0023569907, 0.00018152807, 0.012974456, 0.005894933, 0.0011784951, 0.00018152807, 0.012974461, 0.005894936, 0.0011784968, 0.00018152807, 0.012974468, 0.005894941, 0.0011784985]
+    max_joint_velocity_deg_s: [54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992, 54.430992]
+    drive_type: force
