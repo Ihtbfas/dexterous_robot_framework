@@ -1,0 +1,4 @@
+schema_version: 1
+kind: LinkerL20Model
+device_id: hand
+coupling_profile: mujoco_equal_v1
