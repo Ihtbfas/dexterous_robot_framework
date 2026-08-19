@@ -7,6 +7,7 @@ import pytest
 
 from dexterous_robot.backends.base import Backend
 from dexterous_robot.config import LocalAssetConfig
+from dexterous_robot.config.tasks import TabletopGraspLiftConfig, load_tabletop_grasp_lift_document
 from dexterous_robot.core import Pose
 from dexterous_robot.devices.arms.wam7 import Wam7Model
 from dexterous_robot.devices.hands.linker_l20 import LinkerL20Model
@@ -25,15 +26,21 @@ def _robot() -> ManipulatorSystem:
     )
 
 
+def _task_config(root: Path) -> TabletopGraspLiftConfig:
+    document = load_tabletop_grasp_lift_document(root / "configs/tasks/tabletop_grasp_lift.yaml")
+    assert isinstance(document, TabletopGraspLiftConfig)
+    return document
+
+
 def test_isaac_backend_constructs_without_loading_simulator_modules():
     from dexterous_robot.backends.isaac.backend import IsaacBackend
-    from dexterous_robot.backends.isaac.config import load_isaac_backend_config, load_tabletop_grasp_lift_config
+    from dexterous_robot.backends.isaac.config import load_isaac_backend_config
 
     root = Path(__file__).resolve().parents[2]
     backend = IsaacBackend(
         robot=_robot(),
         backend_config=load_isaac_backend_config(root / "configs/backends/isaac.yaml"),
-        task_config=load_tabletop_grasp_lift_config(root / "configs/tasks/tabletop_grasp_lift.yaml"),
+        task_config=_task_config(root),
         assets=LocalAssetConfig(Path("/tmp/wam.usda"), Path("/tmp/l20.usda")),
         headless=True,
     )
@@ -45,13 +52,13 @@ def test_isaac_backend_constructs_without_loading_simulator_modules():
 
 def test_backend_rejects_calls_before_initialize():
     from dexterous_robot.backends.isaac.backend import IsaacBackend
-    from dexterous_robot.backends.isaac.config import load_isaac_backend_config, load_tabletop_grasp_lift_config
+    from dexterous_robot.backends.isaac.config import load_isaac_backend_config
 
     root = Path(__file__).resolve().parents[2]
     backend = IsaacBackend(
         robot=_robot(),
         backend_config=load_isaac_backend_config(root / "configs/backends/isaac.yaml"),
-        task_config=load_tabletop_grasp_lift_config(root / "configs/tasks/tabletop_grasp_lift.yaml"),
+        task_config=_task_config(root),
         assets=LocalAssetConfig(Path("/tmp/wam.usda"), Path("/tmp/l20.usda")),
         headless=True,
     )
@@ -66,7 +73,7 @@ def test_backend_rejects_calls_before_initialize():
 def test_initialize_failure_preserves_runtime_for_diagnostic_cleanup(monkeypatch):
     import types
     from dexterous_robot.backends.isaac.backend import IsaacBackend
-    from dexterous_robot.backends.isaac.config import load_isaac_backend_config, load_tabletop_grasp_lift_config
+    from dexterous_robot.backends.isaac.config import load_isaac_backend_config
 
     class FakeApp:
         def __init__(self, _settings):
@@ -79,7 +86,7 @@ def test_initialize_failure_preserves_runtime_for_diagnostic_cleanup(monkeypatch
     backend = IsaacBackend(
         robot=_robot(),
         backend_config=load_isaac_backend_config(root / "configs/backends/isaac.yaml"),
-        task_config=load_tabletop_grasp_lift_config(root / "configs/tasks/tabletop_grasp_lift.yaml"),
+        task_config=_task_config(root),
         assets=LocalAssetConfig(Path("/tmp/wam.usda"), Path("/tmp/l20.usda")),
         headless=True,
     )

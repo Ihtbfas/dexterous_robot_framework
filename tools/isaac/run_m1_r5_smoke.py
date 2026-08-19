@@ -11,8 +11,9 @@ from pathlib import Path
 import yaml
 
 from dexterous_robot.backends.isaac.backend import IsaacBackend
-from dexterous_robot.backends.isaac.config import load_isaac_backend_config, load_tabletop_grasp_lift_config
+from dexterous_robot.backends.isaac.config import load_isaac_backend_config
 from dexterous_robot.config import load_local_asset_config
+from dexterous_robot.config.tasks import load_tabletop_grasp_lift_document as load_tabletop_grasp_lift_config
 from dexterous_robot.core import Pose
 from dexterous_robot.devices.arms.wam7 import Wam7Model
 from dexterous_robot.devices.hands.linker_l20 import LinkerL20Model
@@ -140,9 +141,6 @@ def main() -> int:
                 result["asset_hash_after_error"] = f"{type(hash_exc).__name__}:{hash_exc}"
         return_code = 1
     finally:
-        # Persist the runtime outcome before closing Kit.  On the user's Isaac
-        # runtime SimulationApp.close() can terminate the interpreter, so writing
-        # only after shutdown can erase the only useful exception evidence.
         if backend is not None:
             try:
                 result["backend_diagnostics"] = backend.diagnostics
@@ -164,9 +162,6 @@ def main() -> int:
                 result["backend_shutdown_error"] = f"{type(exc).__name__}:{exc}"
                 return_code = 1
 
-        # If Kit returned normally from cleanup, refresh the file with any
-        # shutdown diagnostics.  The pre-cleanup write above remains the hard
-        # evidence path if close() terminates the process.
         args.output.write_text(json.dumps(result, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8")
     return return_code
 
