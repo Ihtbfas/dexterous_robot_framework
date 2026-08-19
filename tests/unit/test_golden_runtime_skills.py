@@ -12,7 +12,7 @@ from dexterous_robot.core import (
 )
 from dexterous_robot.devices.arms.wam7 import WAM7_JOINT_NAMES
 from dexterous_robot.devices.hands.linker_l20 import L20_PHYSICAL_JOINTS, L20PhysicalTarget21
-from dexterous_robot.motion.limits import ResolvedJointKinematicLimits
+from dexterous_robot.motion.limits import ResolvedCartesianKinematicLimits, ResolvedJointKinematicLimits
 from dexterous_robot.runtime import RuntimeSnapshot
 from dexterous_robot.skills.approach import ArmWaypoint, PreshapeApproachPlan, PreshapeApproachSkill
 from dexterous_robot.skills.grasp import PreloadGraspCriteria, PreloadGraspSkill
@@ -59,6 +59,14 @@ def _approach_limits() -> ResolvedJointKinematicLimits:
         velocity_rad_s=(1.875,) * 7,
         acceleration_rad_s2=(1.0e9,) * 7,
         jerk_rad_s3=(1.0e9,) * 7,
+    )
+
+
+def _lift_limits_for_point_zero_five_in_point_two_seconds() -> ResolvedCartesianKinematicLimits:
+    return ResolvedCartesianKinematicLimits(
+        linear_velocity_m_s=0.46875,
+        linear_acceleration_m_s2=1.0e9,
+        linear_jerk_m_s3=1.0e9,
     )
 
 
@@ -141,7 +149,7 @@ def test_live_pose_lift_locks_actual_tcp_pose_on_first_sample() -> None:
         controller=CartesianCarryController(kinematics=kin),
         hand_hold_command=hand_hold,
         delta_world_m=(0.0, 0.0, 0.05),
-        duration_s=0.2,
+        cartesian_limits=_lift_limits_for_point_zero_five_in_point_two_seconds(),
         criteria=LiftCriteria(max_relative_drift_m=0.03, minimum_object_rise_m=0.025, max_table_normal_n=0.1),
     )
     start = _snapshot(time_s=1.0, arm_q=q, hand_xyz=actual_tcp.position_xyz_m, hand_quat=actual_tcp.quaternion_xyzw)
@@ -149,6 +157,7 @@ def test_live_pose_lift_locks_actual_tcp_pose_on_first_sample() -> None:
     assert result.status is SkillStatus.RUNNING
     assert skill.carry_goal is not None
     assert skill.carry_goal.locked_tcp_pose == actual_tcp
+    assert skill.carry_goal.duration_s == 0.2
 
 
 def test_suspended_hold_captures_arm_joint_hold_and_requires_continuous_half_second() -> None:
