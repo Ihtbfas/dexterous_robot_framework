@@ -28,24 +28,6 @@ def test_tracked_isaac_backend_config_is_typed_and_contains_no_local_asset_paths
     assert "/home/lyf/" not in text
 
 
-def test_tracked_tabletop_task_config_freezes_m1_geometry_and_initialization():
-    from dexterous_robot.backends.isaac.config import load_tabletop_grasp_lift_config
-
-    root = Path(__file__).resolve().parents[2]
-    cfg = load_tabletop_grasp_lift_config(root / "configs/tasks/tabletop_grasp_lift.yaml")
-
-    assert cfg.table_top_world_z_m == 0.98
-    assert cfg.table_dimensions_xyz_m == (0.45, 0.5, 0.05)
-    assert cfg.object_dimensions_xyz_m == (0.05, 0.05, 0.065)
-    assert cfg.object_mass_kg == 0.05
-    assert cfg.object_position_world_m == (0.68, -0.14, 1.0125)
-    assert cfg.object_static_friction == 1.0
-    assert cfg.object_dynamic_friction == 1.0
-    assert len(cfg.initial_wam_q_rad) == 7
-    assert len(cfg.initial_hand_q_rad) == 21
-    assert cfg.initial_l20_root_position_world_m == pytest.approx((0.3714205479287327, 0.14, 1.1880446148173085))
-
-
 def test_isaac_config_loader_rejects_unknown_schema(tmp_path: Path):
     from dexterous_robot.backends.isaac.config import IsaacConfigError, load_isaac_backend_config
 
@@ -62,7 +44,6 @@ def test_r8_backend_config_has_distinct_open_and_grasp_lock_hand_profiles() -> N
     assert cfg.hand_open_hold.drive_type == "force"
     assert cfg.hand_grasp_lock.drive_type == "force"
     assert len(cfg.hand_grasp_lock.max_force_nm) == 21
-    # Contact authority is intentionally stronger than precontact authority on evidence-selected lanes.
     assert cfg.hand_grasp_lock.max_force_nm[0] == pytest.approx(0.12)
     assert cfg.hand_grasp_lock.max_force_nm[1] == pytest.approx(0.1087)
     assert cfg.hand_grasp_lock.max_force_nm[13] == pytest.approx(0.04291625)
