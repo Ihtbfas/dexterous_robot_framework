@@ -31,22 +31,22 @@ control:
     pregrasp_q_rad: [0.6781061247, 0.6387102595, -0.8220436684, -0.8183301392, -1.8423909304, 0.5366345445, 0.4366345444]
     grasp_q_rad: [0.6409612055, 0.6602303863, -0.7924558436, -0.7563616005, -1.7493225115, 0.5366375803, 0.4366375803]
     preshape_hand_q_rad: [0.67, 0.65, 0.053988333333333104, 0.08116249999999944, 0.08082477363348008, 0.0, 0.10616666666666542, 0.08375999999999954, 0.08375999999999954, 0.0, 0.10616666666666542, 0.08375999999999954, 0.08375999999999954, 0.0, 0.10616666666666542, 0.08375999999999954, 0.08375999999999954, 0.0, 0.10616666666666542, 0.08375999999999954, 0.08375999999999954]
-    waypoint_duration_s: 1.5
-    preshape_duration_s: 1.5
-    settle_duration_s: 0.3333333333333333
+    waypoint_duration_s: 1.0
+    preshape_duration_s: 1.0
+    settle_duration_s: 0.2
     joint_tolerance_rad: 0.03
   grasp:
     base_preload_hand_q_rad: [0.67, 0.65, 0.24277833333332893, 0.38108749999998925, 0.38108749999998925, 0.0, 0.3954999999999889, 0.32183999999999585, 0.32183999999999585, 0.0, 0.4135833333333216, 0.3367199999999956, 0.3367199999999956, 0.0, 0.3269999999999926, 0.2725599999999972, 0.2725599999999972, 0.0, 0.25083333333332714, 0.2027999999999977, 0.2027999999999977]
     release_settle_s: 0.2
-    # R15U Golden timing: 300 preload control ticks (5 s), 180 lock-ramp ticks (3 s), 60 fixed-lock hold ticks (1 s).
-    preload_duration_s: 5.0
-    lock_ramp_duration_s: 3.0
-    lock_hold_duration_s: 1.0
+    # M1.6-R1 pacing/height: same grasp geometry, shorter timing only.
+    preload_duration_s: 3.0
+    lock_ramp_duration_s: 1.5
+    lock_hold_duration_s: 0.5
     # Diagnostic quality target only. It must not veto the direct physical lift probe.
     target_squeeze_n: 0.45
   lift:
-    delta_world_z_m: 0.05
-    duration_s: 10.0
+    delta_world_z_m: 0.08
+    duration_s: 3.5
     minimum_object_rise_m: 0.025
     max_table_normal_n: 0.1
     max_relative_drift_m: 0.03
