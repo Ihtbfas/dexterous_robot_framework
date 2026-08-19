@@ -18,6 +18,12 @@ from .profiles import (
     resolve_cartesian_limits,
     resolve_joint_limits,
 )
+from .timing import (
+    JointTimingResult,
+    ScalarTimingResult,
+    minimum_jerk_duration,
+    minimum_jerk_joint_duration,
+)
 
 __all__ = [
     "CartesianKinematicLimits", "JointKinematicLimits", "LimitProvenance",
@@ -25,4 +31,5 @@ __all__ = [
     "load_cartesian_kinematic_limits", "load_joint_kinematic_limits",
     "CartesianMotionProfile", "JointMotionProfile", "MotionProfiles",
     "load_motion_profiles", "resolve_cartesian_limits", "resolve_joint_limits",
+    "JointTimingResult", "ScalarTimingResult", "minimum_jerk_duration", "minimum_jerk_joint_duration",
 ]
