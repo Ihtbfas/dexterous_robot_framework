@@ -66,18 +66,31 @@ def test_local_asset_config_rejects_non_string_path(tmp_path):
         load_local_asset_config(p)
 
 
-def test_tabletop_task_config_contains_typed_m1_control_contract() -> None:
-    from dexterous_robot.backends.isaac import load_tabletop_grasp_lift_config
+def test_tabletop_task_config_contains_typed_m17_control_contract() -> None:
+    from dexterous_robot.config.tasks import load_tabletop_grasp_lift_config
+    from dexterous_robot.motion.profiles import load_motion_profiles
 
-    cfg = load_tabletop_grasp_lift_config(Path(__file__).resolve().parents[2] / "configs" / "tasks" / "tabletop_grasp_lift.yaml")
-    assert cfg.control.approach.waypoint_duration_s == pytest.approx(1.0)
+    root = Path(__file__).resolve().parents[2]
+    profiles = load_motion_profiles(root / "configs" / "motion" / "profiles.yaml")
+    cfg = load_tabletop_grasp_lift_config(
+        root / "configs" / "tasks" / "tabletop_grasp_lift.yaml",
+        motion_profiles=profiles,
+    )
+
+    assert cfg.schema_version == 2
+    assert cfg.control.approach.motion_profile == "approach_precise"
     assert len(cfg.control.approach.preshape_hand_q_rad) == 21
+    assert not hasattr(cfg.control.approach, "waypoint_duration_s")
+
     assert cfg.control.grasp.release_settle_s == pytest.approx(0.2)
     assert cfg.control.grasp.preload_duration_s == pytest.approx(3.0)
     assert cfg.control.grasp.lock_ramp_duration_s == pytest.approx(1.5)
     assert cfg.control.grasp.lock_hold_duration_s == pytest.approx(0.5)
     assert cfg.control.grasp.target_squeeze_n == pytest.approx(0.45)
+
     assert cfg.control.lift.delta_world_z_m == pytest.approx(0.08)
-    assert cfg.control.lift.duration_s == pytest.approx(3.5)
+    assert cfg.control.lift.motion_profile == "carry"
+    assert not hasattr(cfg.control.lift, "duration_s")
     assert cfg.control.lift.minimum_object_rise_m == pytest.approx(0.025)
+
     assert cfg.control.hold.duration_s >= 0.5
