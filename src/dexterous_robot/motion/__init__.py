@@ -1,5 +1,6 @@
 """Backend-neutral motion limits, profiles, timing, and audit utilities."""
 
+from .audit import JointRateAudit, JointRateAuditSummary, JointRateEvidence
 from .limits import (
     CartesianKinematicLimits,
     JointKinematicLimits,
@@ -26,6 +27,7 @@ from .timing import (
 )
 
 __all__ = [
+    "JointRateAudit", "JointRateAuditSummary", "JointRateEvidence",
     "CartesianKinematicLimits", "JointKinematicLimits", "LimitProvenance",
     "ResolvedCartesianKinematicLimits", "ResolvedJointKinematicLimits", "ScalarLimit",
     "load_cartesian_kinematic_limits", "load_joint_kinematic_limits",
