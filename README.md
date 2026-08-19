@@ -41,7 +41,7 @@ m1.6-motion-pacing-height-v1
 
 ### WAM7 + Linker Hand L20 · Isaac Sim Tabletop Grasp & Lift
 
-![WAM7 + Linker L20 Grasp & Lift Demo](docs/media/demos/m1_6_wam7_l20_grasp_lift_preview.gif)
+[![WAM7 + Linker L20 Grasp & Lift Demo](docs/media/demos/m1_6_wam7_l20_grasp_lift_preview.gif)](https://github.com/Ihtbfas/dexterous_robot_framework/releases/download/m1.6-motion-pacing-height-v1/m1_6_wam7_l20_grasp_lift.mp4)
 
 ```text
 Approach
