@@ -39,3 +39,13 @@ def test_golden_example_builds_task_from_typed_config() -> None:
     assert final_hand_hold.position_rad[3] == task_cfg.control.grasp.base_preload_hand_q_rad[3] + 0.04
     assert final_hand_hold.position_rad[14] == task_cfg.control.grasp.base_preload_hand_q_rad[14] + 0.08
     assert final_hand_hold.position_rad[18] == task_cfg.control.grasp.base_preload_hand_q_rad[18] + 0.08
+
+
+def test_golden_example_resolves_assets_through_registry_not_legacy_direct_paths() -> None:
+    path, _ = _load_example_module()
+    source = path.read_text(encoding="utf-8")
+    assert "load_asset_registry" in source
+    assert "load_asset_selection" in source
+    assert "load_local_asset_config" not in source
+    assert "--asset-registry" in source
+    assert "--asset-root-config" in source

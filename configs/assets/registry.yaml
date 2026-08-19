@@ -1,0 +1,18 @@
+schema_version: 1
+assets:
+  arm.wam7.isaac.canonical_geometry_v2:
+    device_kind: arm
+    device_model: wam7
+    backend: isaac
+    version: canonical_geometry_v2
+    relative_path: arms/wam7/isaac/canonical_geometry_v2/controllers/wam7_phase1_v2_final_runtime.usda
+    sha256: ee4994869755fff0a120e6a136d5dca1e337e323ea2fe5d149fac8c036e1ad8f
+    distribution: private_local
+  hand.linker_l20.isaac.dynamic_v1:
+    device_kind: hand
+    device_model: linker_l20
+    backend: isaac
+    version: dynamic_v1
+    relative_path: hands/linker_l20/isaac/dynamic_v1/runtimes/l20_dynamic_world_fixed_collision_candidate_v2.usda
+    sha256: 966610337cc1fc8df30b5208d5459ee811b3c510121ea7a0eadec7568c305802
+    distribution: private_local

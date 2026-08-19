@@ -1,0 +1,4 @@
+schema_version: 1
+roles:
+  arm_runtime: arm.wam7.isaac.canonical_geometry_v2
+  hand_runtime: hand.linker_l20.isaac.dynamic_v1

@@ -27,3 +27,9 @@ After M1-R8 is accepted, the tracked example `examples/isaac/tabletop_grasp_lift
 Local/private USD paths are deliberately not tracked. Start from `configs/assets/local_assets.example.yaml` or create an ignored `configs/local/*.yaml` with `wam_runtime` and `l20_runtime`. The one-click M1 migration runner creates the local file automatically from `DRF_M1_WAM_RUNTIME` and `DRF_M1_L20_RUNTIME` (or the frozen local defaults) and verifies the configured asset SHA256 values before and after the single Isaac run.
 
 The M1 Golden acceptance contract requires WAM7+L20 load, grasp-lock completion, the cuboid leaving the table, at least 25 mm cuboid-center rise, at least 0.5 s suspended hold, and consistent Tensor/PhysX/USD/Fabric object transforms at the pre-lift, post-lift, and hold-end checkpoints.
+
+## Robot assets
+
+Robot binaries, USD layers, meshes, and vendor/private geometry live outside this source repository under a shared device-first asset root selected by `ROBOT_ASSETS_ROOT`. The source tree tracks only logical asset IDs and integrity metadata in `configs/assets/registry.yaml`. Projects select assets by logical ID; they do not own or hard-code project-stage asset directories.
+
+Set `ROBOT_ASSETS_ROOT` or create an ignored local root config from `configs/assets/robot_assets.example.yaml`.

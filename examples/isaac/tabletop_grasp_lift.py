@@ -17,7 +17,8 @@ from dexterous_robot.backends.isaac.config import (
     load_isaac_backend_config,
     load_tabletop_grasp_lift_config,
 )
-from dexterous_robot.config import load_local_asset_config
+from dexterous_robot.assets import load_asset_registry, load_asset_selection
+from dexterous_robot.config import LocalAssetConfig
 from dexterous_robot.control.arm import CartesianCarryController, Wam7Kinematics
 from dexterous_robot.control.hand import GraspLockController, GraspLockGoal
 from dexterous_robot.core import JointPositionCommand, Pose, SkillStatus
@@ -50,7 +51,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--backend-config", type=Path, required=True)
     parser.add_argument("--task-config", type=Path, required=True)
     parser.add_argument("--robot-config", type=Path, required=True)
-    parser.add_argument("--local-assets", type=Path, required=True)
+    parser.add_argument("--asset-registry", type=Path, required=True)
+    parser.add_argument("--asset-selection", type=Path, required=True)
+    parser.add_argument("--asset-root-config", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--timeout-s", type=float, default=40.0)
     parser.add_argument("--headless", action="store_true")
@@ -208,7 +211,17 @@ def main() -> int:
     try:
         backend_cfg = load_isaac_backend_config(args.backend_config)
         task_cfg = load_tabletop_grasp_lift_config(args.task_config)
-        assets = load_local_asset_config(args.local_assets)
+        registry = load_asset_registry(args.asset_registry, args.asset_root_config)
+        selection = load_asset_selection(args.asset_selection)
+        resolved_assets = registry.resolve_selection(selection)
+        if set(resolved_assets) != {"arm_runtime", "hand_runtime"}:
+            raise RuntimeError(f"M1_GOLDEN_ASSET_SELECTION_INVALID:{sorted(resolved_assets)}")
+        assets = LocalAssetConfig(
+            wam_runtime=resolved_assets["arm_runtime"],
+            l20_runtime=resolved_assets["hand_runtime"],
+        )
+        summary["asset_registry_root"] = str(registry.root)
+        summary["asset_ids"] = dict(selection.roles)
         robot = _load_robot(args.robot_config)
         task, final_hand_hold = _build_task(task_cfg)
         summary["final_hand_lock_q_rad"] = list(final_hand_hold.position_rad)
