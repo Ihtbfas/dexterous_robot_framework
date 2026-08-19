@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from dexterous_robot.core import Command, FailureReason, JointPositionCommand, SkillResult, SkillStatus
+from dexterous_robot.motion.limits import ResolvedJointKinematicLimits
+from dexterous_robot.motion.timing import JointTimingResult, minimum_jerk_joint_duration
 from dexterous_robot.runtime import RuntimeSnapshot
 
 from ._common import positive_finite, snapshot_joint_state
@@ -74,7 +76,6 @@ class ApproachSkill:
 class ArmWaypoint:
     name: str
     q_rad: tuple[float, ...]
-    duration_s: float
 
     def __post_init__(self) -> None:
         from dexterous_robot.devices.arms.wam7 import WAM7_JOINT_NAMES
@@ -84,7 +85,6 @@ class ArmWaypoint:
         if len(values) != len(WAM7_JOINT_NAMES):
             raise ValueError("ARM_WAYPOINT_WIDTH_INVALID")
         object.__setattr__(self, "q_rad", values)
-        object.__setattr__(self, "duration_s", positive_finite(self.duration_s, error="ARM_WAYPOINT_DURATION_INVALID"))
 
 
 @dataclass(frozen=True)
@@ -112,16 +112,26 @@ class PreshapeApproachPlan:
 
 
 class PreshapeApproachSkill:
-    """Timed collision-safe arm approach with hand preshape before the final grasp waypoint."""
+    """Collision-safe arm approach whose arm segment durations are resolved from actual start state."""
 
-    def __init__(self, *, plan: PreshapeApproachPlan, hand_open_command: JointPositionCommand) -> None:
+    def __init__(
+        self,
+        *,
+        plan: PreshapeApproachPlan,
+        hand_open_command: JointPositionCommand,
+        joint_limits: ResolvedJointKinematicLimits,
+    ) -> None:
         from dexterous_robot.control import JointTargetRampController
+        from dexterous_robot.devices.arms.wam7 import WAM7_JOINT_NAMES
         if not isinstance(plan, PreshapeApproachPlan):
             raise ValueError("PRESHAPE_APPROACH_PLAN_INVALID")
         if not isinstance(hand_open_command, JointPositionCommand) or hand_open_command.device_id != "hand":
             raise ValueError("PRESHAPE_APPROACH_HAND_OPEN_INVALID")
+        if not isinstance(joint_limits, ResolvedJointKinematicLimits) or joint_limits.joint_names != WAM7_JOINT_NAMES:
+            raise ValueError("PRESHAPE_APPROACH_JOINT_LIMITS_INVALID")
         self._plan = plan
         self._hand_open = hand_open_command
+        self._joint_limits = joint_limits
         self._ramp = JointTargetRampController()
         self.reset()
 
@@ -131,10 +141,16 @@ class PreshapeApproachSkill:
         self._phase_started_s: float | None = None
         self._segment_start_arm: tuple[float, ...] | None = None
         self._segment_start_hand: tuple[float, ...] | None = None
+        self._segment_timing: JointTimingResult | None = None
+        self._segment_timings: list[tuple[str, JointTimingResult]] = []
 
     @property
     def local_phase(self) -> str:
         return self._phase
+
+    @property
+    def segment_timings(self) -> tuple[tuple[str, JointTimingResult], ...]:
+        return tuple(self._segment_timings)
 
     def _arm_hold(self, q_rad: tuple[float, ...]) -> JointPositionCommand:
         from dexterous_robot.devices.arms.wam7 import WAM7_JOINT_NAMES
@@ -146,6 +162,18 @@ class PreshapeApproachSkill:
         self._phase_started_s = snapshot.time_s
         self._segment_start_arm = arm.position_rad
         self._segment_start_hand = hand.position_rad
+
+    def _timing_for(self, waypoint: ArmWaypoint, snapshot: RuntimeSnapshot) -> JointTimingResult:
+        assert self._segment_start_arm is not None
+        if self._segment_timing is None:
+            self._segment_timing = minimum_jerk_joint_duration(
+                self._segment_start_arm,
+                waypoint.q_rad,
+                self._joint_limits,
+                minimum_duration_s=snapshot.dt_s,
+            )
+            self._segment_timings.append((waypoint.name, self._segment_timing))
+        return self._segment_timing
 
     def step(self, snapshot: RuntimeSnapshot) -> tuple[SkillResult, tuple[Command, ...]]:
         try:
@@ -160,16 +188,19 @@ class PreshapeApproachSkill:
 
         if self._phase == "ARM":
             waypoint = self._plan.arm_waypoints[self._arm_index]
+            timing = self._timing_for(waypoint, snapshot)
+            duration = timing.duration_s
             arm_cmd = self._ramp.compute(
                 device_id="arm", joint_names=arm_state.names,
                 start_rad=self._segment_start_arm, target_rad=waypoint.q_rad,
-                elapsed_s=min(elapsed, waypoint.duration_s), duration_s=waypoint.duration_s,
+                elapsed_s=min(elapsed, duration), duration_s=duration,
                 profile="arm_carry_position_drive",
             )
-            if elapsed + 1.0e-12 >= waypoint.duration_s:
+            if elapsed + 1.0e-12 >= duration:
                 self._arm_index += 1
                 self._phase_started_s = snapshot.time_s
                 self._segment_start_arm = arm_state.position_rad
+                self._segment_timing = None
                 if self._arm_index >= len(self._plan.arm_waypoints):
                     self._phase = "PRESHAPE"
                     self._segment_start_hand = hand_state.position_rad
@@ -187,20 +218,24 @@ class PreshapeApproachSkill:
                 self._phase = "GRASP_WAYPOINT"
                 self._phase_started_s = snapshot.time_s
                 self._segment_start_arm = arm_state.position_rad
+                self._segment_timing = None
             return SkillResult(SkillStatus.RUNNING), (self._arm_hold(final_pregrasp), hand_cmd)
 
         preshape_cmd = JointPositionCommand("hand", hand_state.names, self._plan.preshape_hand_q_rad, profile="hand_open_hold")
         if self._phase == "GRASP_WAYPOINT":
             waypoint = self._plan.grasp_waypoint
+            timing = self._timing_for(waypoint, snapshot)
+            duration = timing.duration_s
             arm_cmd = self._ramp.compute(
                 device_id="arm", joint_names=arm_state.names,
                 start_rad=self._segment_start_arm, target_rad=waypoint.q_rad,
-                elapsed_s=min(elapsed, waypoint.duration_s), duration_s=waypoint.duration_s,
+                elapsed_s=min(elapsed, duration), duration_s=duration,
                 profile="arm_carry_position_drive",
             )
-            if elapsed + 1.0e-12 >= waypoint.duration_s:
+            if elapsed + 1.0e-12 >= duration:
                 self._phase = "SETTLE"
                 self._phase_started_s = snapshot.time_s
+                self._segment_timing = None
             return SkillResult(SkillStatus.RUNNING), (arm_cmd, preshape_cmd)
 
         if self._phase == "SETTLE":

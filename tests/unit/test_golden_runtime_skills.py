@@ -12,6 +12,7 @@ from dexterous_robot.core import (
 )
 from dexterous_robot.devices.arms.wam7 import WAM7_JOINT_NAMES
 from dexterous_robot.devices.hands.linker_l20 import L20_PHYSICAL_JOINTS, L20PhysicalTarget21
+from dexterous_robot.motion.limits import ResolvedJointKinematicLimits
 from dexterous_robot.runtime import RuntimeSnapshot
 from dexterous_robot.skills.approach import ArmWaypoint, PreshapeApproachPlan, PreshapeApproachSkill
 from dexterous_robot.skills.grasp import PreloadGraspCriteria, PreloadGraspSkill
@@ -52,6 +53,15 @@ def _hand_command(values=(0.1,) * 21, profile="hand_open_hold") -> JointPosition
     return JointPositionCommand("hand", L20_PHYSICAL_JOINTS, tuple(values), profile=profile)
 
 
+def _approach_limits() -> ResolvedJointKinematicLimits:
+    return ResolvedJointKinematicLimits(
+        joint_names=WAM7_JOINT_NAMES,
+        velocity_rad_s=(1.875,) * 7,
+        acceleration_rad_s2=(1.0e9,) * 7,
+        jerk_rad_s3=(1.0e9,) * 7,
+    )
+
+
 def test_rigid_body_kinematic_command_is_typed_and_immutable() -> None:
     command = RigidBodyKinematicCommand("object", False)
     assert command.body_id == "object"
@@ -61,31 +71,28 @@ def test_rigid_body_kinematic_command_is_typed_and_immutable() -> None:
 def test_preshape_approach_keeps_hand_open_then_preshapes_before_final_grasp_waypoint() -> None:
     plan = PreshapeApproachPlan(
         arm_waypoints=(
-            ArmWaypoint("ready", (0.1,) * 7, 0.1),
-            ArmWaypoint("transit", (0.2,) * 7, 0.1),
-            ArmWaypoint("pregrasp", (0.3,) * 7, 0.1),
+            ArmWaypoint("ready", (0.1,) * 7),
+            ArmWaypoint("transit", (0.2,) * 7),
+            ArmWaypoint("pregrasp", (0.3,) * 7),
         ),
         preshape_hand_q_rad=(0.25,) * 21,
         preshape_duration_s=0.1,
-        grasp_waypoint=ArmWaypoint("grasp", (0.4,) * 7, 0.1),
+        grasp_waypoint=ArmWaypoint("grasp", (0.4,) * 7),
         settle_duration_s=0.1,
         joint_tolerance_rad=0.02,
     )
     open_cmd = _hand_command()
-    skill = PreshapeApproachSkill(plan=plan, hand_open_command=open_cmd)
+    skill = PreshapeApproachSkill(plan=plan, hand_open_command=open_cmd, joint_limits=_approach_limits())
 
     result, commands = skill.step(_snapshot(time_s=0.0))
     assert result.status is SkillStatus.RUNNING
     assert commands[1] == open_cmd
-    # Step through the timed local sequence using states matching segment targets.
     for time_s, q in ((0.1, (0.1,) * 7), (0.2, (0.2,) * 7), (0.3, (0.3,) * 7)):
         result, commands = skill.step(_snapshot(time_s=time_s, arm_q=q))
         assert result.status is SkillStatus.RUNNING
-    # Preshape phase emits a hand-open profile command whose target moves toward preshape.
     result, commands = skill.step(_snapshot(time_s=0.4, arm_q=(0.3,) * 7, hand_q=(0.25,) * 21))
     assert result.status is SkillStatus.RUNNING
     assert commands[1].device_id == "hand"
-    # Final grasp waypoint follows preshape, not before it.
     result, commands = skill.step(_snapshot(time_s=0.5, arm_q=(0.4,) * 7, hand_q=(0.25,) * 21))
     assert result.status is SkillStatus.RUNNING
     result, _ = skill.step(_snapshot(time_s=0.6, arm_q=(0.4,) * 7, hand_q=(0.25,) * 21))
@@ -114,8 +121,6 @@ def test_preload_grasp_releases_object_before_preload_and_locks_fixed_target() -
     assert result.status is SkillStatus.RUNNING
     assert any(isinstance(command, RigidBodyKinematicCommand) for command in commands)
     assert commands[-1].profile == "hand_open_hold"
-
-    # Once release settle elapses, body-mode command is not re-issued and preload uses contact profile.
     result, commands = skill.step(_snapshot(time_s=0.1, hand_q=(0.1,) * 21))
     assert not any(isinstance(command, RigidBodyKinematicCommand) for command in commands)
     assert commands[-1].profile == "hand_grasp_lock"
