@@ -19,3 +19,7 @@ dist/
 .vscode/
 .idea/
 .DS_Store
+
+# Demo full videos belong in GitHub Releases
+docs/media/demos/*.mp4
+docs/media/demos/*.webm
