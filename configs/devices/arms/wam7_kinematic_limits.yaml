@@ -1,0 +1,32 @@
+schema_version: 1
+kind: JointKinematicLimits
+device_model: wam7
+joints:
+  wam_j1_joint:
+    velocity: {max_rad_s: 1.997117216953125, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    acceleration: {max_rad_s2: 6.149526201659322, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    jerk: {max_rad_s3: 63.9077509425, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+  wam_j2_joint:
+    velocity: {max_rad_s: 0.7717973662500001, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    acceleration: {max_rad_s2: 2.3765195582095027, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    jerk: {max_rad_s3: 24.697515720000002, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+  wam_j3_joint:
+    velocity: {max_rad_s: 2.199453542578125, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    acceleration: {max_rad_s2: 6.772560506013634, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    jerk: {max_rad_s3: 70.3825133625, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+  wam_j4_joint:
+    velocity: {max_rad_s: 1.05763557609375, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    acceleration: {max_rad_s2: 3.2566729843320075, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    jerk: {max_rad_s3: 33.844338435, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+  wam_j5_joint:
+    velocity: {max_rad_s: 0.6978304406249998, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    acceleration: {max_rad_s2: 2.1487604946323136, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    jerk: {max_rad_s3: 22.330574099999993, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+  wam_j6_joint:
+    velocity: {max_rad_s: 1.5544336263281249, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    acceleration: {max_rad_s2: 4.786414253855728, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    jerk: {max_rad_s3: 49.741876042499996, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+  wam_j7_joint:
+    velocity: {max_rad_s: 1.5544336263281249, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    acceleration: {max_rad_s2: 4.786414253855728, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}
+    jerk: {max_rad_s3: 49.741876042499996, authority: project_software, source: m1.6 analytical minimum-jerk commanded envelope plus 25 percent authority margin, derived_from: m1.6-motion-pacing-height-v1}

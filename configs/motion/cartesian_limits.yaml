@@ -1,0 +1,19 @@
+schema_version: 1
+kind: CartesianKinematicLimits
+system_id: wam7_linker_l20
+linear:
+  velocity:
+    max_m_s: 0.053571428571428575
+    authority: project_software
+    source: m1.6 analytical lift envelope plus 25 percent authority margin
+    derived_from: m1.6-motion-pacing-height-v1
+  acceleration:
+    max_m_s2: 0.04713063421956129
+    authority: project_software
+    source: m1.6 analytical lift envelope plus 25 percent authority margin
+    derived_from: m1.6-motion-pacing-height-v1
+  jerk:
+    max_m_s3: 0.13994169096209913
+    authority: project_software
+    source: m1.6 analytical lift envelope plus 25 percent authority margin
+    derived_from: m1.6-motion-pacing-height-v1

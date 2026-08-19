@@ -1,0 +1,12 @@
+schema_version: 1
+kind: MotionProfiles
+joint_profiles:
+  approach_precise:
+    velocity_scale: 0.8
+    acceleration_scale: 0.8
+    jerk_scale: 0.8
+cartesian_profiles:
+  carry:
+    linear_velocity_scale: 0.8
+    linear_acceleration_scale: 0.8
+    linear_jerk_scale: 0.8
