@@ -11,22 +11,29 @@ from typing import Any
 
 import yaml
 
-from dexterous_robot.backends.isaac.backend import IsaacBackend
-from dexterous_robot.backends.isaac.config import (
-    TabletopGraspLiftConfig,
-    load_isaac_backend_config,
-    load_tabletop_grasp_lift_config,
-)
 from dexterous_robot.assets import load_asset_registry, load_asset_selection
+from dexterous_robot.backends.isaac.backend import IsaacBackend
+from dexterous_robot.backends.isaac.config import load_isaac_backend_config
 from dexterous_robot.config import LocalAssetConfig
+from dexterous_robot.config.tasks import TabletopGraspLiftConfig, load_tabletop_grasp_lift_config
 from dexterous_robot.control.arm import CartesianCarryController, Wam7Kinematics
 from dexterous_robot.control.hand import GraspLockController, GraspLockGoal
-from dexterous_robot.core import JointPositionCommand, Pose, SkillStatus
+from dexterous_robot.core import JointPositionCommand, Pose
 from dexterous_robot.devices.arms.wam7 import WAM7_JOINT_NAMES, Wam7Model
 from dexterous_robot.devices.hands.linker_l20 import (
     L20_PHYSICAL_JOINTS,
     L20PhysicalTarget21,
     LinkerL20Model,
+)
+from dexterous_robot.motion import (
+    JointRateAudit,
+    ResolvedCartesianKinematicLimits,
+    ResolvedJointKinematicLimits,
+    load_cartesian_kinematic_limits,
+    load_joint_kinematic_limits,
+    load_motion_profiles,
+    resolve_cartesian_limits,
+    resolve_joint_limits,
 )
 from dexterous_robot.robots import ManipulatorSystem, MountTransform
 from dexterous_robot.runtime import RuntimeSession
@@ -47,10 +54,13 @@ _REQUIRED_TRANSFORM_CHECKPOINTS = ("PRE_LIFT", "POST_LIFT", "HOLD_END")
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the M1 WAM7 + Linker L20 Isaac tabletop grasp/lift example.")
+    parser = argparse.ArgumentParser(description="Run the WAM7 + Linker L20 Isaac tabletop grasp/lift Golden example.")
     parser.add_argument("--backend-config", type=Path, required=True)
     parser.add_argument("--task-config", type=Path, required=True)
     parser.add_argument("--robot-config", type=Path, required=True)
+    parser.add_argument("--joint-limits", type=Path, required=True)
+    parser.add_argument("--cartesian-limits", type=Path, required=True)
+    parser.add_argument("--motion-profiles", type=Path, required=True)
     parser.add_argument("--asset-registry", type=Path, required=True)
     parser.add_argument("--asset-selection", type=Path, required=True)
     parser.add_argument("--asset-root-config", type=Path, required=True)
@@ -91,7 +101,12 @@ def _load_robot(path: Path) -> ManipulatorSystem:
     )
 
 
-def _build_task(task_cfg: TabletopGraspLiftConfig) -> tuple[TabletopGraspLiftTask, JointPositionCommand]:
+def _build_task(
+    task_cfg: TabletopGraspLiftConfig,
+    *,
+    approach_joint_limits: ResolvedJointKinematicLimits,
+    carry_cartesian_limits: ResolvedCartesianKinematicLimits,
+) -> tuple[TabletopGraspLiftTask, JointPositionCommand, PreshapeApproachSkill, LivePoseLiftSkill]:
     control = task_cfg.control
     hand_open = JointPositionCommand(
         "hand",
@@ -102,17 +117,18 @@ def _build_task(task_cfg: TabletopGraspLiftConfig) -> tuple[TabletopGraspLiftTas
     approach = PreshapeApproachSkill(
         plan=PreshapeApproachPlan(
             arm_waypoints=(
-                ArmWaypoint("lateral_ready", control.approach.lateral_ready_q_rad, control.approach.waypoint_duration_s),
-                ArmWaypoint("transit", control.approach.transit_q_rad, control.approach.waypoint_duration_s),
-                ArmWaypoint("pregrasp", control.approach.pregrasp_q_rad, control.approach.waypoint_duration_s),
+                ArmWaypoint("lateral_ready", control.approach.lateral_ready_q_rad),
+                ArmWaypoint("transit", control.approach.transit_q_rad),
+                ArmWaypoint("pregrasp", control.approach.pregrasp_q_rad),
             ),
             preshape_hand_q_rad=control.approach.preshape_hand_q_rad,
             preshape_duration_s=control.approach.preshape_duration_s,
-            grasp_waypoint=ArmWaypoint("grasp", control.approach.grasp_q_rad, control.approach.waypoint_duration_s),
+            grasp_waypoint=ArmWaypoint("grasp", control.approach.grasp_q_rad),
             settle_duration_s=control.approach.settle_duration_s,
             joint_tolerance_rad=control.approach.joint_tolerance_rad,
         ),
         hand_open_command=hand_open,
+        joint_limits=approach_joint_limits,
     )
 
     base_target = L20PhysicalTarget21(control.grasp.base_preload_hand_q_rad, "mujoco_equal_v1")
@@ -140,7 +156,7 @@ def _build_task(task_cfg: TabletopGraspLiftConfig) -> tuple[TabletopGraspLiftTas
         controller=CartesianCarryController(kinematics=Wam7Kinematics()),
         hand_hold_command=final_hand_hold,
         delta_world_m=(0.0, 0.0, control.lift.delta_world_z_m),
-        duration_s=control.lift.duration_s,
+        cartesian_limits=carry_cartesian_limits,
         criteria=LiftCriteria(
             max_relative_drift_m=control.lift.max_relative_drift_m,
             minimum_object_rise_m=control.lift.minimum_object_rise_m,
@@ -158,7 +174,8 @@ def _build_task(task_cfg: TabletopGraspLiftConfig) -> tuple[TabletopGraspLiftTas
             max_relative_drift_m=control.hold.max_relative_drift_m,
         ),
     )
-    return TabletopGraspLiftTask(approach=approach, grasp=grasp, lift=lift, hold=hold), final_hand_hold
+    task = TabletopGraspLiftTask(approach=approach, grasp=grasp, lift=lift, hold=hold)
+    return task, final_hand_hold, approach, lift
 
 
 def _checkpoint_consistent(backend_diagnostics: dict[str, Any], tolerance_m: float) -> bool:
@@ -184,6 +201,33 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8")
 
 
+def _motion_evidence(
+    approach: PreshapeApproachSkill | None,
+    lift: LivePoseLiftSkill | None,
+    audit: JointRateAudit | None,
+    lift_distance_m: float | None,
+) -> dict[str, Any]:
+    return {
+        "motion_timing": {
+            "approach": [] if approach is None else [
+                {
+                    "segment": name,
+                    "duration_s": timing.duration_s,
+                    "limiting_joint": timing.limiting_joint,
+                    "limiting_constraint": timing.limiting_constraint,
+                }
+                for name, timing in approach.segment_timings
+            ],
+            "lift": None if lift is None or lift.timing_result is None else {
+                "duration_s": lift.timing_result.duration_s,
+                "distance_m": lift_distance_m,
+                "limiting_constraint": lift.timing_result.limiting_constraint,
+            },
+        },
+        "joint_rate_audit": None if audit is None else audit.summary_as_dict(),
+    }
+
+
 def main() -> int:
     args = _parse_args()
     if not math.isfinite(args.timeout_s) or args.timeout_s <= 0.0:
@@ -206,11 +250,29 @@ def main() -> int:
     backend: IsaacBackend | None = None
     session: RuntimeSession | None = None
     assets = None
+    approach_skill: PreshapeApproachSkill | None = None
+    lift_skill: LivePoseLiftSkill | None = None
+    motion_audit: JointRateAudit | None = None
+    lift_distance_m: float | None = None
     return_code = 1
 
     try:
         backend_cfg = load_isaac_backend_config(args.backend_config)
-        task_cfg = load_tabletop_grasp_lift_config(args.task_config)
+        profiles = load_motion_profiles(args.motion_profiles)
+        base_joint_limits = load_joint_kinematic_limits(args.joint_limits, expected_joint_names=WAM7_JOINT_NAMES)
+        base_cartesian_limits = load_cartesian_kinematic_limits(args.cartesian_limits)
+        task_cfg = load_tabletop_grasp_lift_config(args.task_config, motion_profiles=profiles)
+        approach_joint_limits = resolve_joint_limits(
+            base_joint_limits,
+            profiles.joint(task_cfg.control.approach.motion_profile),
+        )
+        carry_cartesian_limits = resolve_cartesian_limits(
+            base_cartesian_limits,
+            profiles.cartesian(task_cfg.control.lift.motion_profile),
+        )
+        motion_audit = JointRateAudit(approach_joint_limits)
+        lift_distance_m = abs(task_cfg.control.lift.delta_world_z_m)
+
         registry = load_asset_registry(args.asset_registry, args.asset_root_config)
         selection = load_asset_selection(args.asset_selection)
         resolved_assets = registry.resolve_selection(selection)
@@ -222,8 +284,16 @@ def main() -> int:
         )
         summary["asset_registry_root"] = str(registry.root)
         summary["asset_ids"] = dict(selection.roles)
+        summary["motion_profiles"] = {
+            "approach": task_cfg.control.approach.motion_profile,
+            "lift": task_cfg.control.lift.motion_profile,
+        }
         robot = _load_robot(args.robot_config)
-        task, final_hand_hold = _build_task(task_cfg)
+        task, final_hand_hold, approach_skill, lift_skill = _build_task(
+            task_cfg,
+            approach_joint_limits=approach_joint_limits,
+            carry_cartesian_limits=carry_cartesian_limits,
+        )
         summary["final_hand_lock_q_rad"] = list(final_hand_hold.position_rad)
         summary["asset_hashes_before"] = {
             "wam_runtime": _sha256(assets.wam_runtime),
@@ -259,6 +329,9 @@ def main() -> int:
             old_phase = task.phase
             result, commands = task.step(snapshot)
             new_phase = task.phase
+            for command in commands:
+                if isinstance(command, JointPositionCommand) and command.device_id == "arm":
+                    motion_audit.observe(time_s=snapshot.time_s, command=command)
             snapshot = session.cycle(commands)
             max_object_z = max(max_object_z, float(snapshot.body_poses["object"].position_xyz_m[2]))
 
@@ -327,6 +400,7 @@ def main() -> int:
                 "l20_runtime": _sha256(assets.l20_runtime),
             },
         })
+        summary.update(_motion_evidence(approach_skill, lift_skill, motion_audit, lift_distance_m))
         summary["transform_consistency_pass"] = _checkpoint_consistent(
             backend.diagnostics,
             backend_cfg.transform_sync.position_tolerance_m,
@@ -347,6 +421,7 @@ def main() -> int:
                 summary["asset_hash_after_error"] = f"{type(hash_exc).__name__}:{hash_exc}"
         return_code = 1
     finally:
+        summary.update(_motion_evidence(approach_skill, lift_skill, motion_audit, lift_distance_m))
         if backend is not None:
             try:
                 summary["backend_diagnostics"] = backend.diagnostics
