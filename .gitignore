@@ -23,3 +23,6 @@ dist/
 # Demo full videos belong in GitHub Releases
 docs/media/demos/*.mp4
 docs/media/demos/*.webm
+
+# MuJoCo default runtime warning/error log
+MUJOCO_LOG.TXT
