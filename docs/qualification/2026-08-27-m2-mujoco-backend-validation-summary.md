@@ -77,3 +77,18 @@ hand.linker_l20.mujoco.right_v1
 - `opposing_y_squeeze_n` is a task-oriented lateral-grasp telemetry signal based on opposing world-Y contact components; it is not yet a general arbitrary-grasp squeeze metric.
 - MuJoCo model attachment may emit non-blocking `znear`, `njmax`, and `nconmax` conflict warnings. They were present during the accepted model, contact, full-task, and Viewer validations.
 - Research diagnostics, qualification scripts, and sealed evidence are intentionally retained outside the public release delta.
+
+## Known limitation: MuJoCo Viewer teardown
+
+Validation environment:
+
+```text
+Python 3.14.6
+MuJoCo 3.11.0
+glfw 2.10.2
+Linux
+```
+
+Both the clean public Viewer example and the previously accepted Task10 Viewer runner reached the full successful task terminal state before native process teardown. The public run produced `APPROACH → GRASP → LIFT → HOLD → SUCCESS`, `viewer_closed_early=False`, and the expected Golden metrics before a GLFW assertion/abort at interpreter teardown. The old accepted Task10 runner independently reproduced the same pattern: runtime classification PASS, full task SUCCESS, receipt written, and only then a native segmentation fault during process exit.
+
+This is therefore recorded as a **known non-blocking Viewer teardown environment issue**. It is not evidence of a failure in grasping, lifting, suspended hold, contact telemetry, task semantics, or the MuJoCo backend. The release hard gate is the successful headless real Demo plus numerical acceptance; Viewer evidence is auxiliary visual confirmation.

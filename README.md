@@ -214,6 +214,13 @@ MuJoCo 使用与 Isaac Sim 相同的 `TabletopGraspLiftTask`、Approach / Grasp 
 
 ## Current Validated Setup
 
+
+#### Known limitation: MuJoCo Viewer teardown
+
+在当前验证环境 `Python 3.14.6 + MuJoCo 3.11.0 + glfw 2.10.2`（Linux）下，`mujoco.viewer.launch_passive()` 在任务已经完成并输出 `SUCCESS` 后，进程退出阶段可能触发 GLFW/native teardown abort 或 segmentation fault。该现象同时可在此前已验收的 Task10 Viewer runner 上复现，因此当前将其记录为 **Viewer teardown 的已知非阻塞环境问题**，而不是抓取、抬升、保持或 MuJoCo backend 功能失败。
+
+正式功能验证以 headless Demo 的终态与数值指标为硬门槛；Viewer 用于辅助视觉确认。若 Viewer 已完成 `APPROACH → GRASP → LIFT → HOLD → SUCCESS`、`viewer_closed_early=False`，且结果文件已经写出，则任务功能视为完成，即使解释器退出阶段随后发生上述 native teardown 崩溃。
+
 ### MuJoCo Golden
 
 当前 WAM7 + Linker Hand L20 MuJoCo tabletop grasp/lift 已完成真实数值验证与 Viewer 视觉确认：
