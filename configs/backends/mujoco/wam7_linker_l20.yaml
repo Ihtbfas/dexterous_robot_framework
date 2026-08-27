@@ -1,0 +1,13 @@
+schema_version: 1
+kind: MuJoCoBackend
+physics_timestep_s: 0.002
+runtime_dt_tolerance_s: 1.0e-9
+model:
+  arm_asset_role: arm_runtime
+  hand_asset_role: hand_runtime
+frames:
+  wam_base: wam_base
+  wam_flange: wam_j7
+  l20_base: l20_base
+viewer:
+  enabled: false

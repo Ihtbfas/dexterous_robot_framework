@@ -16,3 +16,19 @@ assets:
     relative_path: hands/linker_l20/isaac/dynamic_v1/runtimes/l20_dynamic_world_fixed_collision_candidate_v2.usda
     sha256: 966610337cc1fc8df30b5208d5459ee811b3c510121ea7a0eadec7568c305802
     distribution: private_local
+  arm.wam7.mujoco.canonical_geometry_v2:
+    device_kind: arm
+    device_model: wam7
+    backend: mujoco
+    version: canonical_geometry_v2
+    relative_path: arms/wam7/mujoco/canonical_geometry_v2/model/wam7.xml
+    sha256: ccb4af9667739ccced8d0b418f0eb0f9e5954e4e217cb9ee48161b85a77f71e5
+    distribution: private_local
+  hand.linker_l20.mujoco.right_v1:
+    device_kind: hand
+    device_model: linker_l20
+    backend: mujoco
+    version: right_v1
+    relative_path: hands/linker_l20/mujoco/right_v1/model/linker_hand_l20_right.xml
+    sha256: bbea5079404be76915610bdee61bba18ee44433d2a235589242cb9723218cc61
+    distribution: private_local
