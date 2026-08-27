@@ -1,7 +1,7 @@
 # MuJoCo Backend Validation Summary
 
-**Validated setup:** WAM7 + Linker Hand L20 + MuJoCo  
-**Task:** Tabletop grasp, lift, and suspended hold  
+**Validated setup:** WAM7 + Linker Hand L20 + MuJoCo
+**Task:** Tabletop grasp, lift, and suspended hold
 **Status:** Validated for the current rigid-object vertical slice
 
 ## Result
