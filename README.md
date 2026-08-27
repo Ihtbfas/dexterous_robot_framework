@@ -48,12 +48,13 @@ m1.7-motion-profile-auto-timing-v1
 - **Asset Registry**：机器人资产独立于源码项目，通过逻辑 Asset ID 与 `ROBOT_ASSETS_ROOT` 管理。
 - **Motion Profile + Auto Timing**：基于 joint / Cartesian limits 与 profile scaling 自动计算 minimum-jerk 运动时间。
 - **Real Isaac Golden**：当前 WAM7 + Linker L20 tabletop grasp/lift 已通过真实 Isaac Sim 验证。
+- **Real MuJoCo Golden**：同一上层 Task / Skill / Controller 语义已通过真实 MuJoCo grasp/lift/hold 验证。
 
 当前已支持 / 规划中的 Backend：
 
 ```text
 Isaac Sim   ✅
-MuJoCo      🚧
+MuJoCo      ✅ B1 Backend Qualification
 Real Robot  ⏳
 ```
 
@@ -82,7 +83,7 @@ Runtime / Session
 Backend
  │
  ├── Isaac Sim
- ├── MuJoCo      # planned
+ ├── MuJoCo      # B1 backend qualified; B2 task integration next
  └── Real Robot  # planned
 ```
 
@@ -148,6 +149,8 @@ export ROBOT_ASSETS_ROOT=/path/to/robot_assets
 ```text
 arm.wam7.isaac.canonical_geometry_v2
 hand.linker_l20.isaac.dynamic_v1
+arm.wam7.mujoco.canonical_geometry_v2
+hand.linker_l20.mujoco.right_v1
 ```
 
 Registry：
@@ -178,9 +181,57 @@ ISAAC_PY=/path/to/isaac-sim/python.sh
 
 添加 `--headless` 可使用无界面模式运行。
 
+
+### MuJoCo Demo
+
+安装 MuJoCo 可选依赖：
+
+```bash
+python -m pip install -e '.[mujoco,dev]'
+```
+
+准备独立 Robot Assets：
+
+```bash
+export ROBOT_ASSETS_ROOT=/path/to/robot_assets
+```
+
+无界面运行完整 tabletop grasp/lift：
+
+```bash
+python examples/mujoco/tabletop_grasp_lift.py
+```
+
+打开交互式 MuJoCo Viewer：
+
+```bash
+python examples/mujoco/tabletop_grasp_lift.py --viewer
+```
+
+MuJoCo 使用与 Isaac Sim 相同的 `TabletopGraspLiftTask`、Approach / Grasp / Lift / Hold Skill、任务配置、Motion Profile 与 Runtime 语义；模型装配、接触求解、actuator/servo 与 scene plumbing 由 MuJoCo Backend 独立实现。
+
 ---
 
 ## Current Validated Setup
+
+### MuJoCo Golden
+
+当前 WAM7 + Linker Hand L20 MuJoCo tabletop grasp/lift 已完成真实数值验证与 Viewer 视觉确认：
+
+| 指标 | MuJoCo 结果 |
+|---|---:|
+| Phase sequence | `APPROACH → GRASP → LIFT → HOLD → SUCCESS` |
+| Lift command | +80 mm |
+| 最大实际抬升 | ≈ 71.39 mm |
+| Hold 后最终净抬升 | ≈ 67.39 mm |
+| Suspended hold | ≈ 1.01 s |
+| Final table normal | 0 N |
+| Final relative drift | ≈ 10.91 mm |
+| Final opposing-Y squeeze | ≈ 5.49 N |
+
+> Isaac Sim 与 MuJoCo 共享上层 Device / Controller / Skill / Task / Runtime 语义，但物理引擎、机器人资产、接触遥测与 actuator/servo plumbing 保持 backend-specific。
+
+
 
 当前第一条真实验证的 vertical slice：
 
@@ -260,7 +311,8 @@ Minimum-Jerk Auto Timing
 ✅ M1.6    Motion pacing + higher lift
 ✅ M1.7    Motion Profile + Auto Timing
 
-🚧 M2      MuJoCo Backend
+✅ M2-B1   MuJoCo Model / Backend Qualification
+🚧 M2-B2   MuJoCo Tabletop Grasp & Lift
 
 ⏳ Real Backend
 ⏳ Sensors / Tactile
@@ -268,14 +320,16 @@ Minimum-Jerk Auto Timing
 ⏳ More Devices / Tasks
 ```
 
-M2 的目标是复用现有 Device / Robot / Controller / Skill / Task / Runtime 语义，仅新增 MuJoCo-specific backend 与必要的模型映射。
+M2-B1 已完成 WAM7 + Linker Hand L20 的 MuJoCo Model / Backend Qualification：模型装配、28-DOF 路由、typed position command、deterministic Runtime timing、WAM7 七轴受控运动以及 L20 Active16 → Physical21 coupling 均已通过。下一步 M2-B2 将复用现有 Device / Robot / Controller / Skill / Task / Runtime 语义，在 MuJoCo 中复现 backend-neutral TabletopGraspLiftTask。
 
 ---
 
 ## Known Limitations
 
 - 当前 Cartesian Lift 已使用 Cartesian limits 自动定时，但 **Cartesian → joint** 的完整 joint-space retiming 尚未实现。
-- 当前正式验证范围仍以 **WAM7 + Linker Hand L20 + Isaac Sim tabletop grasp/lift** 为主。
+- Isaac Sim tabletop grasp/lift 已完成真实 Golden；MuJoCo 当前完成到 **M2-B1 Backend Qualification**，尚未完成 M2-B2 tabletop grasp/lift。
+- M2-B1 的 WAM 七轴 probe 验证的是 typed command、方向性运动与 Runtime/backend 语义，不代表 WAM MuJoCo 位置跟踪已经完成性能调参。
+- M2-B1 使用 broad robot-internal collision filtering；B2 必须重新验证 robot↔table/cube 外部接触，后续若任务依赖真实 self-contact 也需要重新审视该策略。
 - Robot Assets 由独立资产目录提供，不随源码仓库自动分发。
 
 ---
